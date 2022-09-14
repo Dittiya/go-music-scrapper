@@ -2,8 +2,8 @@ package server
 
 import (
 	"fmt"
+	"go-music-scrapper/config"
 
-	"github.com/Dittiya/go-music-scrapper/config"
 	"github.com/gofiber/fiber/v2"
 )
 
