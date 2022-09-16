@@ -1,10 +1,14 @@
 package config
 
+import "github.com/gofiber/fiber/v2"
+
 type Config struct {
-	Port int16
+	fiber.Config
+	Port int
 }
 
-func NewConfig() Config {
-	var port int16 = 8008
-	return Config{Port: port}
+func DefaultConfig() Config {
+	cfg := fiber.Config{AppName: "Music Scrapper"}
+	port := 8008
+	return Config{Config: cfg, Port: port}
 }
