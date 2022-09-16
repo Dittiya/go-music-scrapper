@@ -1,6 +1,8 @@
 package service
 
 import (
+	"encoding/json"
+	"fmt"
 	"go-music-scrapper/router"
 	"io"
 	"net/http"
@@ -9,12 +11,15 @@ import (
 )
 
 type User struct {
-	Id int
+	Id       int    `json:"id"`
+	Name     string `json:"name"`
+	Location string `json:"location_area_encounters"`
 }
 
 func BuildUserService(v1 *router.V1) {
 	v1.Get("/user", authUser)
 	v1.Get("/artist", getArtist)
+	v1.Get("/pokemon", getPokemon)
 }
 
 func authUser(c *fiber.Ctx) error {
@@ -22,16 +27,26 @@ func authUser(c *fiber.Ctx) error {
 }
 
 func getArtist(c *fiber.Ctx) error {
+	return c.SendString("Temp")
+}
+
+// Example of consuming API
+func getPokemon(c *fiber.Ctx) error {
 	resp, err := http.Get("https://pokeapi.co/api/v2/pokemon/ditto")
 	if err != nil {
 		c.SendString(err.Error())
 	}
 
 	defer resp.Body.Close()
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		c.SendString(err.Error())
 	}
+	var poke User
+	json.Unmarshal(body, &poke)
 
-	return c.SendString(string(body))
+	msg := fmt.Sprintf("Name %v with the Id of %d, You can find it here %v", poke.Name, poke.Id, poke.Location)
+
+	return c.SendString(msg)
 }
