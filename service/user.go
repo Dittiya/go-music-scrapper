@@ -16,16 +16,54 @@ type Pokemon struct {
 	Location string `json:"location_area_encounters"`
 }
 
-type User struct{}
+type User struct {
+	Code  string
+	State string
+}
 
 func BuildUserService(v1 *router.V1) {
 	v1.Get("/user", authUser)
 	v1.Get("/user/playlist", userPlaylist)
+	v1.Get("/login", spotifyLogin)
+	v1.Get("/callback", spotifyCallback)
 	v1.Get("/pokemon", getPokemon)
 }
 
 func authUser(c *fiber.Ctx) error {
-	return c.SendString("Hello User")
+	return c.SendString("Yooo")
+}
+
+// TODO
+// Improve this, that format is hideous
+func spotifyLogin(c *fiber.Ctx) error {
+	url := "https://accounts.spotify.com/authorize?"
+	respType := "code"
+	clientId := "035da001ba5b492ba5c527d149dc34e2"
+	scope := "user-read-private user-read-email"
+	redirectUri := "http://localhost:8008/api/v1/callback"
+	state := "aAdf3i34O22LL19d"
+
+	uri := fmt.Sprintf(
+		"%vresponse_type=%v&client_id=%v&scope=%v&redirect_uri=%v&state=%v",
+		url, respType, clientId, scope, redirectUri, state,
+	)
+
+	return c.Redirect(uri)
+}
+
+// TODO
+// Save the Code and State then process get User's details
+func spotifyCallback(c *fiber.Ctx) error {
+	callback := User{
+		Code:  c.Query("code", "empty"),
+		State: c.Query("state", "empty"),
+	}
+	call, err := json.Marshal(callback)
+	if err != nil {
+		panic(err)
+	}
+
+	return c.SendString(string(call))
 }
 
 func userPlaylist(c *fiber.Ctx) error {
@@ -47,8 +85,10 @@ func getPokemon(c *fiber.Ctx) error {
 	}
 	var poke Pokemon
 	json.Unmarshal(body, &poke)
+	po, err := json.Marshal(poke)
+	if err != nil {
+		panic(err)
+	}
 
-	msg := fmt.Sprintf("Name %v with the Id of %d, You can find it here %v", poke.Name, poke.Id, poke.Location)
-
-	return c.SendString(msg)
+	return c.SendString(string(po))
 }

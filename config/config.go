@@ -1,6 +1,8 @@
 package config
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"github.com/gofiber/fiber/v2"
+)
 
 type Config struct {
 	fiber.Config
