@@ -7,6 +7,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	_ "github.com/joho/godotenv/autoload"
 )
 
 func NewServer() {

@@ -6,6 +6,7 @@ import (
 	"go-music-scrapper/router"
 	"io"
 	"net/http"
+	"os"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -16,7 +17,7 @@ type Pokemon struct {
 	Location string `json:"location_area_encounters"`
 }
 
-type User struct {
+type Spotify struct {
 	Code  string
 	State string
 }
@@ -38,7 +39,7 @@ func authUser(c *fiber.Ctx) error {
 func spotifyLogin(c *fiber.Ctx) error {
 	url := "https://accounts.spotify.com/authorize?"
 	respType := "code"
-	clientId := "035da001ba5b492ba5c527d149dc34e2"
+	clientId := os.Getenv("CLIENT_ID")
 	scope := "user-read-private user-read-email"
 	redirectUri := "http://localhost:8008/api/v1/callback"
 	state := "aAdf3i34O22LL19d"
@@ -54,7 +55,7 @@ func spotifyLogin(c *fiber.Ctx) error {
 // TODO
 // Save the Code and State then process get User's details
 func spotifyCallback(c *fiber.Ctx) error {
-	callback := User{
+	callback := Spotify{
 		Code:  c.Query("code", "empty"),
 		State: c.Query("state", "empty"),
 	}
