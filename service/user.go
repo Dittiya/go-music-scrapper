@@ -21,10 +21,10 @@ type Pokemon struct {
 }
 
 type Token struct {
-	AcessToken   string
-	TokenType    string
-	Expires      string
-	RefreshToken string
+	AcessToken   string `json:"access_token"`
+	TokenType    string `json:"token_type"`
+	Expires      string `json:"expires_in"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 type State string
@@ -60,7 +60,7 @@ func spotifyLogin(c *fiber.Ctx) error {
 }
 
 // TODO
-// Save the Code and State then process get User's details
+// Cache Access Token according to expiring time
 func spotifyCallback(c *fiber.Ctx) error {
 	bodyParams := url.Values{
 		"grant_type":   {"authorization_code"},
@@ -85,6 +85,9 @@ func spotifyCallback(c *fiber.Ctx) error {
 	if err != nil {
 		c.SendString(err.Error())
 	}
+
+	var token Token
+	json.Unmarshal(body, &token)
 
 	return c.SendString(string(body))
 }
