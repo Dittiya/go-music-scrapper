@@ -1,12 +1,15 @@
 package service
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"go-music-scrapper/router"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -17,10 +20,14 @@ type Pokemon struct {
 	Location string `json:"location_area_encounters"`
 }
 
-type Spotify struct {
-	Code  string
-	State string
+type Token struct {
+	AcessToken   string
+	TokenType    string
+	Expires      string
+	RefreshToken string
 }
+
+type State string
 
 func BuildUserService(v1 *router.V1) {
 	v1.Get("/user", authUser)
@@ -42,7 +49,7 @@ func spotifyLogin(c *fiber.Ctx) error {
 	clientId := os.Getenv("CLIENT_ID")
 	scope := "user-read-private user-read-email"
 	redirectUri := "http://localhost:8008/api/v1/callback"
-	state := "aAdf3i34O22LL19d"
+	state := "testtesttesttest" // Create function to randomize this
 
 	uri := fmt.Sprintf(
 		"%vresponse_type=%v&client_id=%v&scope=%v&redirect_uri=%v&state=%v",
@@ -55,16 +62,31 @@ func spotifyLogin(c *fiber.Ctx) error {
 // TODO
 // Save the Code and State then process get User's details
 func spotifyCallback(c *fiber.Ctx) error {
-	callback := Spotify{
-		Code:  c.Query("code", "empty"),
-		State: c.Query("state", "empty"),
-	}
-	call, err := json.Marshal(callback)
-	if err != nil {
-		panic(err)
+	bodyParams := url.Values{
+		"grant_type":   {"authorization_code"},
+		"code":         {c.Query("code", "empty")},
+		"redirect_uri": {"http://localhost:8008/api/v1/callback"},
 	}
 
-	return c.SendString(string(call))
+	url := "https://accounts.spotify.com/api/token"
+	bearer := "Basic " + base64.StdEncoding.EncodeToString([]byte(os.Getenv("CLIENT_ID")+":"+os.Getenv("CLIENT_SECRET")))
+	req, _ := http.NewRequest("POST", url, strings.NewReader(bodyParams.Encode()))
+	req.Header.Add("Authorization", bearer)
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		c.SendString(err.Error())
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		c.SendString(err.Error())
+	}
+
+	return c.SendString(string(body))
 }
 
 func userPlaylist(c *fiber.Ctx) error {
@@ -84,6 +106,7 @@ func getPokemon(c *fiber.Ctx) error {
 	if err != nil {
 		c.SendString(err.Error())
 	}
+
 	var poke Pokemon
 	json.Unmarshal(body, &poke)
 	po, err := json.Marshal(poke)
