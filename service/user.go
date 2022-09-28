@@ -34,11 +34,8 @@ func BuildUserService(v1 *router.V1, storage db.Storage) {
 	v1.Get("/user", authUser)
 	v1.Get("/user/playlist", userPlaylist)
 	v1.Get("/login", spotifyLogin)
-	v1.Get("/callback", spotifyCallback)
+	v1.Get("/callback", spotifyCallback(storage))
 	v1.Get("/pokemon", getPokemon)
-
-	v1.Get("/save", save(storage))
-	v1.Get("/load", load(storage))
 }
 
 func authUser(c *fiber.Ctx) error {
@@ -46,6 +43,7 @@ func authUser(c *fiber.Ctx) error {
 }
 
 // TODO
+// Remove hardcoded redirect_uri
 // Improve this, that format is hideous
 func spotifyLogin(c *fiber.Ctx) error {
 	url := "https://accounts.spotify.com/authorize?"
@@ -65,53 +63,42 @@ func spotifyLogin(c *fiber.Ctx) error {
 
 // TODO
 // Cache Access Token according to expiring time
-func spotifyCallback(c *fiber.Ctx) error {
-	bodyParams := url.Values{
-		"grant_type":   {"authorization_code"},
-		"code":         {c.Query("code", "empty")},
-		"redirect_uri": {"http://localhost:8008/api/v1/callback"},
+// Remove hardcoded redirect_uri
+func spotifyCallback(store db.Storage) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		bodyParams := url.Values{
+			"grant_type":   {"authorization_code"},
+			"code":         {c.Query("code", "empty")},
+			"redirect_uri": {"http://localhost:8008/api/v1/callback"},
+		}
+
+		url := "https://accounts.spotify.com/api/token"
+		bearer := "Basic " + base64.StdEncoding.EncodeToString([]byte(os.Getenv("CLIENT_ID")+":"+os.Getenv("CLIENT_SECRET")))
+		req, _ := http.NewRequest("POST", url, strings.NewReader(bodyParams.Encode()))
+		req.Header.Add("Authorization", bearer)
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			c.SendString(err.Error())
+		}
+
+		defer resp.Body.Close()
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			c.SendString(err.Error())
+		}
+
+		var token Token
+		json.Unmarshal(body, &token)
+
+		return c.SendString(string(body))
 	}
-
-	url := "https://accounts.spotify.com/api/token"
-	bearer := "Basic " + base64.StdEncoding.EncodeToString([]byte(os.Getenv("CLIENT_ID")+":"+os.Getenv("CLIENT_SECRET")))
-	req, _ := http.NewRequest("POST", url, strings.NewReader(bodyParams.Encode()))
-	req.Header.Add("Authorization", bearer)
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		c.SendString(err.Error())
-	}
-
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		c.SendString(err.Error())
-	}
-
-	var token Token
-	json.Unmarshal(body, &token)
-
-	return c.SendString(string(body))
 }
 
 func userPlaylist(c *fiber.Ctx) error {
 	return c.SendString("user playlist")
-}
-
-func save(store db.Storage) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		store.Save("temp item")
-		return c.SendString("/save")
-	}
-}
-
-func load(store db.Storage) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		store.Load("temp item")
-		return c.SendString("/load")
-	}
 }
 
 // Example of consuming API
