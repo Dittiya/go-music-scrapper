@@ -18,6 +18,7 @@ func NewServer() {
 
 	app.Use(cors.New())
 
+	// TODO use env config
 	dbase := db.Redis{
 		Options: &redis.Options{
 			Addr:     "redis:6379",
