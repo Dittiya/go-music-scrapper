@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"go-music-scrapper/db"
 	"go-music-scrapper/router"
 	"io"
 	"net/http"
@@ -29,12 +30,15 @@ type Token struct {
 
 type State string
 
-func BuildUserService(v1 *router.V1) {
+func BuildUserService(v1 *router.V1, storage db.Storage) {
 	v1.Get("/user", authUser)
 	v1.Get("/user/playlist", userPlaylist)
 	v1.Get("/login", spotifyLogin)
 	v1.Get("/callback", spotifyCallback)
 	v1.Get("/pokemon", getPokemon)
+
+	v1.Get("/save", save(storage))
+	v1.Get("/load", load(storage))
 }
 
 func authUser(c *fiber.Ctx) error {
@@ -94,6 +98,20 @@ func spotifyCallback(c *fiber.Ctx) error {
 
 func userPlaylist(c *fiber.Ctx) error {
 	return c.SendString("user playlist")
+}
+
+func save(store db.Storage) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		store.Save("temp item")
+		return c.SendString("/save")
+	}
+}
+
+func load(store db.Storage) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		store.Load("temp item")
+		return c.SendString("/load")
+	}
 }
 
 // Example of consuming API
