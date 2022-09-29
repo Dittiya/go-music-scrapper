@@ -22,24 +22,73 @@ type Pokemon struct {
 }
 
 type Token struct {
-	AcessToken   string `json:"access_token"`
+	AccessToken  string `json:"access_token"`
 	TokenType    string `json:"token_type"`
-	Expires      string `json:"expires_in"`
+	Expires      int    `json:"expires_in"`
 	RefreshToken string `json:"refresh_token"`
+}
+
+type User struct {
+	Id    string `json:"id"`
+	Name  string `json:"display_name"`
+	Email string `json:"email"`
 }
 
 type State string
 
 func BuildUserService(v1 *router.V1, storage db.Storage) {
-	v1.Get("/user", authUser)
+	v1.Get("/user", user(storage)).Name("user")
 	v1.Get("/user/playlist", userPlaylist)
 	v1.Get("/login", spotifyLogin)
 	v1.Get("/callback", spotifyCallback(storage))
 	v1.Get("/pokemon", getPokemon)
 }
 
-func authUser(c *fiber.Ctx) error {
-	return c.SendString("Yooo")
+func user(store db.Storage) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		userId := c.Query("id")
+
+		accessToken, err := store.Load(userId)
+		if err != nil {
+			return c.SendString(err.Error())
+		}
+
+		refreshToken, err := store.Load(userId + "_refresh")
+		if err != nil {
+			return c.SendString(err.Error())
+		}
+
+		return c.SendString(fmt.Sprintf("Access : %v \nRefresh : %v", accessToken, refreshToken))
+	}
+}
+
+// Call /me to retrieve user's profile
+func retrieveUser(token Token, store db.Storage) (string, error) {
+	apiCall := "https://api.spotify.com/v1/me"
+	bearer := "Bearer " + token.AccessToken
+	req, _ := http.NewRequest("GET", apiCall, nil)
+	req.Header.Add("Authorization", bearer)
+	req.Header.Add("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	var user User
+	json.Unmarshal(body, &user)
+
+	store.Save(user.Id, token.AccessToken, token.Expires)
+	store.Save(user.Id+"_refresh", token.RefreshToken, 0)
+
+	return user.Id, nil
 }
 
 // TODO
@@ -93,7 +142,15 @@ func spotifyCallback(store db.Storage) fiber.Handler {
 		var token Token
 		json.Unmarshal(body, &token)
 
-		return c.SendString(string(body))
+		id, err := retrieveUser(token, store)
+		if err != nil {
+			c.SendString(err.Error())
+		}
+
+		return c.RedirectToRoute("user", fiber.Map{
+			"name":    "callback",
+			"queries": map[string]string{"id": id},
+		})
 	}
 }
 
