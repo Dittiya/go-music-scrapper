@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -26,8 +25,6 @@ func (r *Redis) InitRedis() {
 }
 
 func (r *Redis) Save(key string, item string, duration int) (string, error) {
-	fmt.Printf("Saving %v to %v", key, item)
-
 	err := r.Client.Set(ctx, key, item, time.Duration(duration)*time.Second).Err()
 	if err != nil {
 		return "", err
@@ -37,8 +34,6 @@ func (r *Redis) Save(key string, item string, duration int) (string, error) {
 }
 
 func (r *Redis) Load(key string) (string, error) {
-	fmt.Println("Loading", key)
-
 	item, err := r.Client.Get(ctx, key).Result()
 	if err != nil {
 		return "", err
