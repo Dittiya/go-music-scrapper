@@ -3,7 +3,7 @@ package db
 import "errors"
 
 type Storage interface {
-	Save(string) (string, error)
+	Save(string, string, int) (string, error)
 	Load(string) (string, error)
 }
 
