@@ -14,6 +14,6 @@ services:
     build:
       context: .
     volumes:
-      - ./go:/usr/src/app
+      - .:/usr/src/app
     ports:
       - "8008:8008"
